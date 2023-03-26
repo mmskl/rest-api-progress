@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+lib
+lib64
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+venv
