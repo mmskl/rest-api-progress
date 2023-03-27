@@ -17,8 +17,8 @@ class Progress(db.Model):
 class Podcast(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(50), nullable=False)
-    author_name = db.Column(db.String, db.ForeignKey('author.id'), nullable=True)
-    image_url = db.Column(db.String, db.ForeignKey('author.id'), nullable=True)
+    author_name = db.Column(db.String, nullable=True)
+    image_url = db.Column(db.String, nullable=True)
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=False)
     url = db.Column(db.String, nullable=False)
 
