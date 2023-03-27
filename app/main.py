@@ -1,18 +1,76 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flasgger import Swagger
 
-from main import User, Progress, Podcast, Queue, Subscription
+from flasgger import Swagger, Schema#, fields
+from flasgger.utils import swag_from
+
+from flask_marshmallow import Marshmallow, fields
+from marshmallow import fields
+from http import HTTPStatus
+
+from app.models import User, Progress, Podcast, Queue, Subscription
+from app.models import db
+
+# https://www.programcreek.com/python/?code=flasgger%2Fflasgger%2Fflasgger-master%2Fexamples%2Fbasic_auth.py#
+
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../../instance/database.sqlite'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../instance/database.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
 
-Swagger(app)
+
+app.config['SWAGGER'] = {
+        "swagger_version": "2.0",
+        "title": "Podcast Sync - REST API",
+        "description": "",
+        }
+
+
+
+db.init_app(app)
+
+ma = Marshmallow(app)
+
+
+swagger = Swagger(app)
+
+# class UserSchema(ma.Schema):
+#     __model__ = User
+
+
+class UserSchema(Schema):
+    number = fields.Str()
+    class Meta():
+        model = User
+    # __model__ = User
+
+# class UserSchema(ma.SQLAlchemyAutoSchema):
+#     xd = fields.Str()
+#     class Meta():
+#         model = User
+
+# TODO: add definitions for models
+# @swagger.definition('Subscription')
+# class User3(db.Model):
+#     """
+#     test return
+#     ---
+#     properties:
+#       result:
+#         type: string
+#         description: The test
+#         default: 'test1'
+#     """
+#     id = db.Column(db.Integer, primary_key=True)
+
+
+
+
 
 
 @app.route('/users', methods=['GET'])
+# @swag_from({'responses': { HTTPStatus.OK.value: { 'schema': UserSchema } } })
+# @swag_from({'definitions': {UserSchema} })
 def get_users():
     """
     Get all users
@@ -20,21 +78,11 @@ def get_users():
     tags:
       - User
     responses:
+    responses:
       200:
-        description: List of all users
+        description: A single user item
         schema:
-          type: array
-          items:
-            properties:
-              id:
-                type: integer
-                description: The user ID
-              name:
-                type: string
-                description: The user's name
-              email:
-                type: string
-                description: The user's email address
+          $ref: '#/definitions/user1'
     """
     users = User.query.all()
     result = []
@@ -635,7 +683,7 @@ def get_podcast(podcast_id):
         return jsonify({'message': 'Podcast not found'}), 404
 
     podcast_data = {'id': podcast.id, 'name': podcast.name,
-                    'author_id': podcast.author_id, 'description': podcast.description,
+                     'description': podcast.description,
                     'created_at': podcast.created_at.isoformat()}
     return jsonify(podcast_data), 200
 
@@ -654,11 +702,6 @@ def create_podcast():
         description: The name of the podcast
         required: true
         type: string
-      - name: author_id
-        in: formData
-        description: The ID of the author of the podcast
-        required: true
-        type: integer
       - name: description
         in: formData
         description: The description of the podcast
@@ -751,7 +794,7 @@ def update_podcast(podcast_id):
             name:
               type: string
               description: The name of the podcast
-            author_id:
+            xd:
               type: integer
               description: The ID of the author of the podcast
       404:
@@ -812,179 +855,6 @@ def delete_podcast(podcast_id):
 
 
 
-@app.route('/authors', methods=['POST'])
-def create_author():
-    """
-    Create a new author
-
-    ---
-    tags:
-      - authors
-    parameters:
-      - name: name
-        in: query
-        type: string
-        required: true
-        description: The name of the author
-      - name: email
-        in: query
-        type: string
-        required: true
-        description: The email address of the author
-    responses:
-      201:
-        description: The newly created author
-        schema:
-          id: Author
-          properties:
-            id:
-              type: integer
-              description: The ID of the author
-            name:
-              type: string
-              description: The name of the author
-            email:
-              type: string
-              description: The email address of the author
-    """
-    name = request.args.get('name')
-    email = request.args.get('email')
-
-    if not name or not email:
-        return jsonify({'error': 'Name and email must be provided'}), 400
-
-    author = Author(name=name, email=email)
-    db.session.add(author)
-    db.session.commit()
-
-    return jsonify({'id': author.id, 'name': author.name, 'email': author.email}), 201
-
-@app.route('/authors/<int:author_id>', methods=['GET'])
-def get_author(author_id):
-    """
-    Get a specific author by ID
-
-    ---
-    tags:
-      - authors
-    parameters:
-      - name: author_id
-        in: path
-        type: integer
-        required: true
-        description: The ID of the author to retrieve
-    responses:
-      200:
-        description: The requested author
-        schema:
-          id: Author
-          properties:
-            id:
-              type: integer
-              description: The ID of the author
-            name:
-              type: string
-              description: The name of the author
-            email:
-              type: string
-              description: The email address of the author
-      404:
-        description: Author not found
-    """
-    author = Author.query.get(author_id)
-    if not author:
-        return jsonify({'error': 'Author not found'}), 404
-
-    return jsonify({'id': author.id, 'name': author.name, 'email': author.email})
-
-
-
-@app.route('/authors', methods=['GET'])
-def get_authors():
-    """
-    Get all authors
-    ---
-    tags:
-      - authors
-    responses:
-      200:
-        description: A list of authors
-        schema:
-          type: array
-          items:
-            $ref: '#/definitions/Author'
-    """
-    authors = Author.query.all()
-    return jsonify([author.serialize() for author in authors]), 200
-
-
-
-@app.route('/authors/<int:author_id>', methods=['PUT'])
-def update_author(author_id):
-    """
-    Update an existing author
-    ---
-    tags:
-      - authors
-    parameters:
-      - in: path
-        name: author_id
-        type: integer
-        required: true
-      - in: body
-        name: body
-        schema:
-          $ref: '#/definitions/UpdateAuthor'
-    responses:
-      200:
-        description: Updated author
-        schema:
-          $ref: '#/definitions/Author'
-      404:
-        description: Author not found
-    """
-    author = Author.query.get(author_id)
-    if not author:
-        return jsonify({'message': 'Author not found'}), 404
-
-    data = request.get_json()
-    name = data.get('name')
-    if not name:
-        return jsonify({'message': 'Name is required'}), 400
-
-    author.name = name
-    db.session.commit()
-    return jsonify(author.serialize()), 200
-
-
-@app.route('/authors/<int:author_id>', methods=['DELETE'])
-def delete_author(author_id):
-    """
-    Delete an author
-    ---
-    tags:
-      - authors
-    parameters:
-      - in: path
-        name: author_id
-        type: integer
-        required: true
-    responses:
-      204:
-        description: Author deleted
-      404:
-        description: Author not found
-    """
-    author = Author.query.get(author_id)
-    if not author:
-        return jsonify({'message': 'Author not found'}), 404
-
-    db.session.delete(author)
-    db.session.commit()
-    return '', 204
-
-
-
 
 @app.route('/queue', methods=['GET'])
 def get_queue():
@@ -1023,7 +893,7 @@ def add_to_queue():
         in: body
         required: true
         schema:
-          $ref: '#/definitions/QueueInput'
+          $ref: '#/definitions/user1'
     responses:
       201:
         description: Successfully added podcast to the queue
@@ -1332,6 +1202,14 @@ def delete_subscription(subscription_id):
 
 def get_app_db():
     return (app, db)
+
+
+@app.cli.command('initdb')
+def initdb_command():
+    """Initializes the database."""
+    db.create_all()
+    print('Initialized the database.')
+
 
 
 def run():
